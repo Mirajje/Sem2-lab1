@@ -1,6 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// base (это база) =====================================================================================================
+
+struct Vector{
+    struct RingInfo* ringInfo;
+    void* x;
+    void* y;
+    void* z;
+};
+
 //constants ============================================================================================================
 
 const int the_int_zero = 0;
@@ -18,7 +27,7 @@ struct RingInfo{
     void* (*sum)(void*, void*);
     void* (*minus)(void*);
     void* (*multiply)(void*, const int*);
-    void (*print)(void*);
+    void (*print)(struct Vector*);
 };
 
 struct RingInfo* Create(size_t size,
@@ -26,7 +35,7 @@ struct RingInfo* Create(size_t size,
         void* (*sum)(void*, void*),
         void* (*minus)(void*),
         void* (*multiply)(void*, const int*),
-        void (*print)(void*))
+        void (*print)(struct Vector*))
 {
     struct RingInfo* ringInfo = malloc(sizeof(struct RingInfo));
     ringInfo->one = one;
@@ -40,13 +49,6 @@ struct RingInfo* Create(size_t size,
 }
 
 // vector ==============================================================================================================
-
-struct Vector{
-    struct RingInfo* ringInfo;
-    void* x;
-    void* y;
-    void* z;
-};
 
 struct Vector* E1(struct RingInfo* ringInfo){
     struct Vector* vector = malloc(sizeof(struct Vector));
@@ -75,10 +77,10 @@ struct Vector* E3(struct RingInfo* ringInfo){
     return vector;
 }
 
-void free_vector(void* v){
-    free(((struct Vector*)v)->x);
-    free(((struct Vector*)v)->y);
-    free(((struct Vector*)v)->z);
+void free_vector(struct Vector* v){
+    free(v->x);
+    free(v->y);
+    free(v->z);
     free(v);
 }
 
@@ -92,9 +94,47 @@ void free_vector(void* v){
     return vector;
 }*/
 
-// single int operations ===============================================================================================
+// functions ===========================================================================================================
 
-void* numSumInt(void* a1, void* a2)
+struct Vector* sum(struct Vector* v1, struct Vector* v2){
+    if (v1->ringInfo == v2->ringInfo){
+        struct Vector* res = malloc(sizeof(struct Vector));
+        res->x = v1->ringInfo->sum(v1->x, v2->x);
+        res->y = v1->ringInfo->sum(v1->y, v2->y);
+        res->z = v1->ringInfo->sum(v1->z, v2->z);
+        res->ringInfo = v1->ringInfo;
+        return res;
+    }else{
+        printf("Типы векторов не совпадают");
+        return NULL;
+    }
+}
+
+struct Vector* minus(struct Vector* v){
+    struct Vector* res = malloc(sizeof(struct Vector));
+    res->x = v->ringInfo->minus(v->x);
+    res->y = v->ringInfo->minus(v->y);
+    res->z = v->ringInfo->minus(v->z);
+    res->ringInfo = v->ringInfo;
+    return res;
+}
+
+struct Vector* multiply(struct Vector* v, const int* val){
+    struct Vector* res = malloc(sizeof(struct Vector));
+    res->x = v->ringInfo->multiply(v->x, val);
+    res->y = v->ringInfo->multiply(v->y, val);
+    res->z = v->ringInfo->multiply(v->z, val);
+    res->ringInfo = v->ringInfo;
+    return res;
+}
+
+void print(struct Vector* v){
+    v->ringInfo->print(v);
+}
+
+// intRing =============================================================================================================
+
+void* sumInt(void* a1, void* a2)
 {
     int* ia1 = (int*) a1;
     int* ia2 = (int*) a2;
@@ -103,83 +143,20 @@ void* numSumInt(void* a1, void* a2)
     return (void*) res;
 }
 
-void* numMinusInt(void* a){
+void* minusInt(void* a){
     int* res = malloc(sizeof(int));
     *res = -*(int*) a;
     return (void*) res;
 }
 
-// single double operations ============================================================================================
-
-void* numSumDouble(void* a1, void* a2)
-{
-    double* ia1 = (double*)a1;
-    double* ia2 = (double*)a2;
-    double* res = malloc(sizeof(double));
-    *res = *ia1 + *ia2;
+void* multiplyInt(void* a, const int* val){
+    int* res = malloc(sizeof(int));
+    *res = *val * *(int*) a;
     return (void*) res;
 }
 
-
-void* numMinusDouble(void* a){
-    double* res = malloc(sizeof(double));
-    *res = -*(double*) a;
-    return (void*) res;
-}
-
-// functions ===========================================================================================================
-
-void* sum(void* v1, void* v2){
-    if (((struct Vector*) v1)->ringInfo == ((struct Vector*) v2)->ringInfo){
-        struct Vector* v3 = (struct Vector*) ((struct Vector*) v1)->ringInfo->sum(v1, v2);
-        return (void*) v3;
-    }else{
-        printf("Типы векторов не совпадают");
-        return NULL;
-    }
-}
-
-void print(void* v){
-    ((struct Vector*) v)->ringInfo->print(v);
-}
-
-void* minus(void* v){
-    return ((struct Vector*) v)->ringInfo->minus(v);
-}
-
-// intRing =============================================================================================================
-
-void* intSum(void* v1, void* v2){
-    struct Vector* res = malloc(sizeof(struct Vector));
-    res->x = numSumInt(((struct Vector*)v1)->x, ((struct Vector*)v2)->x);
-    res->y = numSumInt(((struct Vector*)v1)->y, ((struct Vector*)v2)->y);
-    res->z = numSumInt(((struct Vector*)v1)->z, ((struct Vector*)v2)->z);
-    res->ringInfo = ((struct Vector*) v1)->ringInfo;
-    return (void*) res;
-}
-
-void* intMinus(void* v){
-    struct Vector* res = malloc(sizeof(struct Vector));
-    res->x = numMinusInt(((struct Vector*) v)->x);
-    res->y = numMinusInt(((struct Vector*) v)->y);
-    res->z = numMinusInt(((struct Vector*) v)->z);
-    res->ringInfo = ((struct Vector*) v)->ringInfo;
-    return (void*) res;
-}
-
-void* intMultiply(void* v, const int* val){
-    int int_x, int_y, int_z;
-    int_x = *val * *(int*) ((struct Vector*)v)->x;
-    int_y = *val * *(int*) ((struct Vector*)v)->y;
-    int_z = *val * *(int*) ((struct Vector*)v)->z;
-    ((struct Vector*)v)->x = (void*) &int_x;
-    ((struct Vector*)v)->y = (void*) &int_y;
-    ((struct Vector*)v)->z = (void*) &int_z;
-    return v;
-}
-
-void intPrint(void* v){
-    printf("%d %d %d\n", *(int*) ((struct Vector*) v)->x, *(int*) ((struct Vector*) v)->y, *(int*) ((struct Vector*) v)->z);
+void printInt(struct Vector* v){
+    printf("%d %d %d\n", *(int*) v->x, *(int*) v->y, *(int*) v->z);
 }
 
 void* intOne(){
@@ -196,44 +173,39 @@ void* intZero(){
 
 // doubleRing ==========================================================================================================
 
-void* doubleSum(void* v1, void* v2){
-    struct Vector* res = malloc(sizeof(struct Vector));
-    res->x = numSumDouble(((struct Vector*)v1)->x, ((struct Vector*)v2)->x);
-    res->y = numSumDouble(((struct Vector*)v1)->y, ((struct Vector*)v2)->y);
-    res->z = numSumDouble(((struct Vector*)v1)->z, ((struct Vector*)v2)->z);
-    res->ringInfo = ((struct Vector*) v1)->ringInfo;
+void* sumDouble(void* a1, void* a2)
+{
+    double* ia1 = (double*) a1;
+    double* ia2 = (double*) a2;
+    double* res = malloc(sizeof(double));
+    *res = *ia1 + *ia2;
     return (void*) res;
 }
 
-void doubleMinus(void* v){
-    double double_x, double_y, double_z;
-    double_x = -*(double*) ((struct Vector*)v)->x;
-    double_y = -*(double*) ((struct Vector*)v)->y;
-    double_z = -*(double*) ((struct Vector*)v)->z;
-    ((struct Vector*)v)->x = (void*) &double_x;
-    ((struct Vector*)v)->y = (void*) &double_y;
-    ((struct Vector*)v)->z = (void*) &double_z;
+void* minusDouble(void* a){
+    double* res = malloc(sizeof(double));
+    *res = -*(double*) a;
+    return (void*) res;
 }
 
-void* doubleMultiply(void* v, const int* val){
-    double double_x, double_y, double_z;
-    double_x = (double) *val * *(double*) ((struct Vector*)v)->x;
-    double_y = (double) *val * *(double*) ((struct Vector*)v)->y;
-    double_z = (double) *val * *(double*) ((struct Vector*)v)->z;
-    ((struct Vector*)v)->x = (void*) &double_x;
-    ((struct Vector*)v)->y = (void*) &double_y;
-    ((struct Vector*)v)->z = (void*) &double_z;
-    return v;
+void* multiplyDouble(void* a, const int* val){
+    double* res = malloc(sizeof(double));
+    *res = *val * *(double*) a;
+    return (void*) res;
 }
 
-void doublePrint(void* v){
-    printf("%f %f %f\n", *(double*) ((struct Vector*) v)->x, *(double*) ((struct Vector*) v)->y, *(double*) ((struct Vector*) v)->z);
+void printDouble(struct Vector* v){
+    printf("%f %f %f\n", *(double*) v->x, *(double*) v->y, *(double*) v->z);
 }
 
 void* doubleOne(){
-    return (void*) &the_double_one;
+    double* a = malloc(sizeof(double));
+    *a = the_double_one;
+    return (void*) a;
 }
 
 void* doubleZero(){
-    return (void*) &the_double_zero;
+    double* a = malloc(sizeof(double));
+    *a = the_double_zero;
+    return (void*) a;
 }

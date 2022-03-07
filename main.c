@@ -3,39 +3,27 @@
 #include "vector.c"
 
 int main(){
-    struct RingInfo* intRing = Create(sizeof(int), &intOne, &intZero, &sumInt, &minusInt, &multiplyInt, &printInt);
-    struct RingInfo* doubleRing = Create(sizeof(double), &doubleOne, &doubleZero, &sumDouble, &minusDouble, &multiplyDouble, &printDouble);
-    struct Vector* v1 = E1(intRing);
-    struct Vector* v2 = E2(intRing);
-    struct Vector* v3 = E3(intRing);
-    struct Vector* v4;
-    struct Vector* v5 = E1(doubleRing);
-    struct Vector* v6;
-    struct Vector* v7;
-    v4 = sum(v1, v2);
-    print(v4);
+    struct RingInfo* intRing = Create(sizeof(int), &intOne, &intZero, &readInt, &sumInt, &minusInt, &multiplyInt, &printInt);
+    struct RingInfo* doubleRing = Create(sizeof(double), &doubleOne, &doubleZero, &readDouble, &sumDouble, &minusDouble, &multiplyDouble, &printDouble);
 
-    int* a = malloc(sizeof(int));
-    *a = 5;
+    struct Vector** mas = malloc(0);
+    int* n = malloc(sizeof(int));
+    *n = 0;
 
-    v6 = multiply(v5, a);
-    print(v6);
-    v7 = multiply(v2, a);
-    print(v7);
+    mas = push_back(mas, n, FromKeyboard(intRing));
+    mas = push_back(mas, n, FromKeyboard(intRing));
+    mas = push_back(mas, n, sum(mas[0], mas[1]));
 
-    struct Vector* temp = minus(v7);
-    free_vector(v7);
-    v7 = temp;
-    print(v7);
+    mas = push_back(mas, n, multiply(mas[2], 8));
 
-    free_vector(v7);
-    free_vector(v3);
-    free_vector(v1);
-    free_vector(v2);
-    free_vector(v4);
-    free_vector(v5);
-    free_vector(v6);
-    free(a);
+    mas = delete(mas, n, 0);
+    mas = push_back(mas, n, E1(intRing));
+
+    mas = push_back(mas, n, minus(mas[2]));
+    print_mas(mas, n);
+    free_mas(mas, n);
+
+    free(n);
     free(intRing);
     free(doubleRing);
 }

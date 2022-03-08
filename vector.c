@@ -10,6 +10,11 @@ struct Vector{
     void* z;
 };
 
+struct Complex{
+    double* r;
+    double* im;
+};
+
 //constants ============================================================================================================
 
 const int the_int_zero = 0;
@@ -28,7 +33,9 @@ struct RingInfo{
     void* (*sum)(void*, void*);
     void* (*minus)(void*);
     void* (*multiply)(void*, const int);
-    void (*print)(struct Vector*);
+    void* (*numbers_multiply)(void*, void*);
+    void (*free)(void*);
+    void (*print)(void*);
 };
 
 struct RingInfo* Create(size_t size,
@@ -37,7 +44,9 @@ struct RingInfo* Create(size_t size,
         void* (*sum)(void*, void*),
         void* (*minus)(void*),
         void* (*multiply)(void*, const int),
-        void (*print)(struct Vector*))
+        void* (*numbers_multiply)(void*, void*),
+        void (*free)(void*),
+        void (*print)(void*))
 {
     struct RingInfo* ringInfo = malloc(sizeof(struct RingInfo));
     ringInfo->one = one;
@@ -46,7 +55,9 @@ struct RingInfo* Create(size_t size,
     ringInfo->size = size;
     ringInfo->sum = sum;
     ringInfo->minus = minus;
+    ringInfo->numbers_multiply = numbers_multiply;
     ringInfo->multiply = multiply;
+    ringInfo->free = free;
     ringInfo->print = print;
     return ringInfo;
 }
@@ -90,9 +101,9 @@ struct Vector* FromKeyboard(struct RingInfo* ringInfo){
 }
 
 void free_vector(struct Vector* v){
-    free(v->x);
-    free(v->y);
-    free(v->z);
+    v->ringInfo->free(v->x);
+    v->ringInfo->free(v->y);
+    v->ringInfo->free(v->z);
     free(v);
 }
 
@@ -109,11 +120,28 @@ struct Vector* sum(struct Vector* v1, struct Vector* v2) {
 
 struct Vector* minus(struct Vector* v){
     struct Vector* res = malloc(sizeof(struct Vector));
-    printf("-2\n");
     res->x = v->ringInfo->minus(v->x);
     res->y = v->ringInfo->minus(v->y);
     res->z = v->ringInfo->minus(v->z);
     res->ringInfo = v->ringInfo;
+    return res;
+}
+
+struct Vector* subtraction(struct Vector* v1, struct Vector* v2) {
+    struct Vector* res = malloc(sizeof(struct Vector));
+    void* temp;
+    temp = v1->ringInfo->minus(v2->x);
+    res->x = v1->ringInfo->sum(v1->x, temp);
+    v1->ringInfo->free(temp);
+
+    temp = v1->ringInfo->minus(v2->y);
+    res->y = v1->ringInfo->sum(v1->y, temp);
+    v1->ringInfo->free(temp);
+
+    temp = v1->ringInfo->minus(v2->z);
+    res->z = v1->ringInfo->sum(v1->z, temp);
+    v1->ringInfo->free(temp);
+    res->ringInfo = v1->ringInfo;
     return res;
 }
 
@@ -126,8 +154,50 @@ struct Vector* multiply(struct Vector* v, const int val){
     return res;
 }
 
+void scalar_multiply(struct Vector* v1, struct Vector* v2){
+    void* t1; void* t2; void* t3; void* t4;
+    void* res;
+    t1 = v1->ringInfo->numbers_multiply(v1->x, v2->x);
+    t2 = v1->ringInfo->numbers_multiply(v1->y, v2->y);
+    t3 = v1->ringInfo->numbers_multiply(v1->z, v2->z);
+    t4 = v1->ringInfo->sum(t1, t2);
+    res = v1->ringInfo->sum(t3, t4);
+    v1->ringInfo->free(t1); v1->ringInfo->free(t2); v1->ringInfo->free(t3); v1->ringInfo->free(t4);
+    v1->ringInfo->print(res);
+    v1->ringInfo->free(res);
+    printf("\n");
+}
+
+struct Vector* vector_multiply(struct Vector* v1, struct Vector* v2){
+    struct Vector* res = malloc(sizeof(struct Vector));
+    void* t1; void* t2; void* t3;
+    t1 = v1->ringInfo->numbers_multiply(v1->y, v2->z);
+    t2 = v1->ringInfo->numbers_multiply(v1->z, v2->y);
+    t3 = v1->ringInfo->minus(t2);
+    res->x = v1->ringInfo->sum(t3, t1);
+    v1->ringInfo->free(t1); v1->ringInfo->free(t2); v1->ringInfo->free(t3);
+
+    t1 = v1->ringInfo->numbers_multiply(v1->z, v2->x);
+    t2 = v1->ringInfo->numbers_multiply(v1->x, v2->z);
+    t3 = v1->ringInfo->minus(t2);
+    res->y = v1->ringInfo->sum(t3, t1);
+    v1->ringInfo->free(t1); v1->ringInfo->free(t2); v1->ringInfo->free(t3);
+
+    t1 = v1->ringInfo->numbers_multiply(v1->x, v2->y);
+    t2 = v1->ringInfo->numbers_multiply(v1->y, v2->x);
+    t3 = v1->ringInfo->minus(t2);
+    res->z = v1->ringInfo->sum(t3, t1);
+    v1->ringInfo->free(t1); v1->ringInfo->free(t2); v1->ringInfo->free(t3);
+
+    res->ringInfo = v1->ringInfo;
+    return res;
+}
+
 void print(struct Vector* v){
-    v->ringInfo->print(v);
+    v->ringInfo->print(v->x);
+    v->ringInfo->print(v->y);
+    v->ringInfo->print(v->z);
+    printf("\n");
 }
 
 // mas =================================================================================================================
@@ -200,15 +270,25 @@ void* multiplyInt(void* a, const int val){
     return (void*) res;
 }
 
-void printInt(struct Vector* v){
-    printf("%d %d %d\n", *(int*) v->x, *(int*) v->y, *(int*) v->z);
+void* numbers_multiplyInt(void* a, void* b){
+    int* res = malloc(sizeof(int));
+    *res = *(int*) a * *(int*) b;
+    return (void*) res;
+}
+
+void printInt(void* v){
+    printf("%d ", *(int*) v);
 }
 
 void* readInt(){
     int* a = malloc(sizeof(int));
-    printf("Введите целое число:\n");
+    printf("Введите целое число: ");
     scanf("%d", a);
     return (void*) a;
+}
+
+void freeInt(void* a){
+    free(a);
 }
 
 void* intOne(){
@@ -246,15 +326,25 @@ void* multiplyDouble(void* a, const int val){
     return (void*) res;
 }
 
-void printDouble(struct Vector* v){
-    printf("%lf %lf %lf\n", *(double*) v->x, *(double*) v->y, *(double*) v->z);
+void* numbers_multiplyDouble(void* a, void* b){
+    double* res = malloc(sizeof(double));
+    *res = *(double*) a * *(double*) b;
+    return (void*) res;
+}
+
+void printDouble(void* v){
+    printf("%lf ", *(double*) v);
 }
 
 void* readDouble(){
     double* a = malloc(sizeof(double));
-    printf("Введите дробное число:");
+    printf("Введите дробное число: ");
     scanf("%lf", a);
     return (void*) a;
+}
+
+void freeDouble(void* a){
+    free(a);
 }
 
 void* doubleOne(){
@@ -269,3 +359,72 @@ void* doubleZero(){
     return (void*) a;
 }
 
+// complexRing =========================================================================================================
+
+void* sumComplex(void* a1, void* a2)
+{
+    struct Complex* ia1 = (struct Complex*) a1;
+    struct Complex* ia2 = (struct Complex*) a2;
+    struct Complex* res = malloc(sizeof(struct Complex)); res->r = malloc(sizeof(double)); res->im = malloc(sizeof(double));
+    *res->r = *ia1->r + *ia2->r;
+    *res->im = *ia1->im + *ia2->im;
+    return (void*) res;
+}
+
+void* minusComplex(void* a){
+    struct Complex* res = malloc(sizeof(struct Complex)); res->r = malloc(sizeof(double)); res->im = malloc(sizeof(double));
+    *res->r = -*((struct Complex*) a)->r;
+    *res->im = -*((struct Complex*) a)->im;
+    return (void*) res;
+}
+
+void* multiplyComplex(void* a, const int val){
+    struct Complex* res = malloc(sizeof(struct Complex)); res->r = malloc(sizeof(double)); res->im = malloc(sizeof(double));
+    *res->r = *((struct Complex*) a)->r * val;
+    *res->im = *((struct Complex*) a)->im * val;
+    return (void*) res;
+}
+
+void* numbers_multiplyComplex(void* a, void* b){
+    struct Complex* res = malloc(sizeof(struct Complex)); res->r = malloc(sizeof(double)); res->im = malloc(sizeof(double));
+    struct Complex* ai = (struct Complex*) a;
+    struct Complex* bi = (struct Complex*) b;
+    *res->r = *ai->r * *bi->r - *ai->im * *bi->im;
+    *res->im = *ai->r * *bi->im + *ai->im * *bi->r;
+    return (void*) res;
+}
+
+void printComplex(void* a){
+    struct Complex* ai = (struct Complex*) a;
+    printf("(%lf %lf) ", *ai->r, *ai->im);
+}
+
+void* readComplex(){
+    struct Complex* a = malloc(sizeof(struct Complex)); a->r = malloc(sizeof(double)); a->im = malloc(sizeof(double));
+    printf("Введите вещественную часть комплексного числа: ");
+    scanf("%lf", a->r);
+    printf("Введите мнимую часть комплексного числа: ");
+    scanf("%lf", a->im);
+    return (void*) a;
+}
+
+void freeComplex(void* a){
+    struct Complex* ai = (struct Complex*) a;
+    free(ai->r);
+    free(ai->im);
+    free(a);
+}
+
+void* complexOne(){
+    struct Complex* a = malloc(sizeof(struct Complex)); a->r = malloc(sizeof(double)); a->im = malloc(sizeof(double));
+    *a->r = the_double_one;
+    *a->im = the_double_one;
+    return (void*) a;
+}
+
+void* complexZero(){
+    struct Complex* a = malloc(sizeof(struct Complex)); a->r = malloc(sizeof(double)); a->im = malloc(sizeof(double));
+    *a->r = the_double_zero;
+    *a->im = the_double_zero;
+    return (void*) a;
+}
